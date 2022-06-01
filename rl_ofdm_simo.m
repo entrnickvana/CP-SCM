@@ -32,21 +32,21 @@ close all;
 
 [version, executable, isloaded] = pyversion;
 if ~isloaded
-    pyversion /usr/bin/python
+% %     pyversion /usr/bin/python
     py.print() %weird bug where py isn't loaded in an external script
 end
 
 % Params:
 WRITE_PNG_FILES         = 0;           % Enable writing plots to PNG
-SIM_MOD                 = 0;
+SIM_MOD                 = 1;
 PLOT                    = 1;
 
 if SIM_MOD
     chan_type               = "awgn";
-    nt                      = 100;
-    sim_SNR_db              = 1:20;
+    nt                      = 100;          % Number of iterations
+    sim_SNR_db              = 1:15;         % Vector of SNR values
     nsnr                    = length(sim_SNR_db);
-    snr_plot                = 20;
+    snr_plot                = 10;           % SNR value where the plot info is taken
     TX_SCALE                = 1;            % Scale for Tx waveform ([0:1])
     N_BS_NODE               = 8;            % x BS NODES (multiple-output)
     N_UE                    = 1;            % 1 UE (single-input)
@@ -90,7 +90,7 @@ SC_IND_DATA_PILOT       = [2:27 39:64]';
 N_SC                    = 64;                                     % Number of subcarriers
 CP_LEN                  = 16;                                     % Cyclic prefix length
 N_DATA_SYMS             = N_OFDM_SYM * length(SC_IND_DATA);       % Number of data symbols (one per data-bearing subcarrier per OFDM symbol)
-N_LTS_SYM               = 2;                                      % Number of 
+N_LTS_SYM               = 2;                                      % Number of long training sequence symbols
 N_SYM_SAMP              = N_SC + CP_LEN;                          % Number of samples that will go over the air
 N_ZPAD_PRE              = 90;                                     % Zero-padding prefix for Iris
 N_ZPAD_POST             = N_ZPAD_PRE - 14;                         % Zero-padding postfix for Iris
@@ -129,7 +129,7 @@ ifft_in_mat(SC_IND_DATA, :)   = tx_syms_mat;
 ifft_in_mat(SC_IND_PILOTS, :) = pilots_mat;
 
 %Perform the IFFT
-tx_payload_mat = ifft(ifft_in_mat, N_SC, 1);
+tx_payload_mat = ifft(ifft_in_mat, N_SC, 1); % IFFT is performed for each column (along first dimension)
 
 % Insert the cyclic prefix
 if(CP_LEN > 0)
@@ -195,10 +195,7 @@ else
         % calibration on the BS. This functionality will be added later.
         % For now, we use only the 4-node chains:
         
-        bs_ids = [ "RF3E000387", "RF3E000389", "RF3E000206", "RF3E000211", "RF3E000256", "RF3E000383", "RF3E000304", "RF3E000303", ...
-            "RF3E000246", "RF3E000490", "RF3E000749", "RF3E000697", "RF3E000724", "RF3E000740", "RF3E000532", "RF3E000716", ...
-            "RF3E000674", "RF3E000704", "RF3E000676", "RF3E000668", "RF3E000340", "RF3E000744", "RF3E000161", "RF3E000735" ...
-            ];
+        bs_ids = ["RF3E000387", "RF3E000389", "RF3E000206", "RF3E000211", "RF3E000256", "RF3E000383", "RF3E000304", "RF3E000303"];
         
         hub_id = "FH4B000021";
         
@@ -248,16 +245,16 @@ l_rx_dec=length(rx_vec_iris);
 
 %% Correlate for LTS
 
-a = 1;
-unos = ones(size(preamble.'))';
-data_len = (N_OFDM_SYM)*(N_SC +CP_LEN);
-rx_lts_mat = double.empty();
-payload_ind = int32.empty();
-payload_rx = zeros(data_len,N_BS_NODE);
-m_filt = zeros(length(rx_vec_iris),N_BS_NODE);
-for ibs =1:N_BS_NODE
-        v0 = filter(flipud(preamble'),a,rx_vec_iris(:,ibs));
-        v1 = filter(unos,a,abs(rx_vec_iris(:,ibs)).^2);
+a = 1; % second vector of filter coefficients in Direct Form II Transposed form
+unos = ones(size(preamble.'))'; % Spanish for 'ones'
+data_len = (N_OFDM_SYM)*(N_SC +CP_LEN); % number of samples in the data frames
+rx_lts_mat = double.empty(); % initialize
+payload_ind = int32.empty(); % initialize
+payload_rx = zeros(data_len,N_BS_NODE); % initialize one column for each BS antenna
+m_filt = zeros(length(rx_vec_iris),N_BS_NODE); % initialize one column for each BS antenna
+for ibs =1:N_BS_NODE % loop over number of BS antennas
+        v0 = filter(flipud(preamble'),a,rx_vec_iris(:,ibs)); % filter by time-reversed and conjugated preamble
+        v1 = filter(unos,a,abs(rx_vec_iris(:,ibs)).^2); % moving average of the received power
         m_filt(:,ibs) = (abs(v0).^2)./v1; % normalized correlation
         [~, max_idx] = max(m_filt(:,ibs));
         % In case of bad correlatons:
@@ -268,9 +265,9 @@ for ibs =1:N_BS_NODE
             
         end
         
-        payload_ind(ibs) = max_idx +1;
+        payload_ind(ibs) = max_idx +1; % update vector of payload start indices
         lts_ind = payload_ind(ibs) - length(preamble);
-        pl_idx = payload_ind(ibs) : payload_ind(ibs) + data_len;
+        pl_idx = payload_ind(ibs) : payload_ind(ibs) + data_len; % Does this go 1 too far?  Maybe that's why this isn't used much.
         rx_lts_mat(:,ibs) = rx_vec_iris(lts_ind: lts_ind + length(preamble) -1, ibs );
         payload_rx(1:length(pl_idx) -1,ibs) = rx_vec_iris(payload_ind(ibs) : payload_ind(ibs) + length(pl_idx) -2, ibs);
 end
@@ -280,14 +277,14 @@ lts_corr = sum(m_filt,2);
 % Extract LTS for channel estimate
 rx_lts_idx1 = -64+-FFT_OFFSET + (97:160);
 rx_lts_idx2 = -FFT_OFFSET + (97:160);
-% Just for two first brnaches: useful when 1x2 SIMO. Just to illustrate
+% Just for two first branches: useful when 1x2 SIMO. Just to illustrate
 % improvement of MRC over two branches:
 rx_lts_b1 = [rx_lts_mat(rx_lts_idx1,1)  rx_lts_mat(rx_lts_idx2,1)];
 rx_lts_b2 = [rx_lts_mat(rx_lts_idx1,2)  rx_lts_mat(rx_lts_idx2,2)];
 
 % Received LTSs for each branch.  
-rx_lts_b1_f = fft(rx_lts_b1);
-rx_lts_b2_f = fft(rx_lts_b2);
+rx_lts_b1_f = fft(rx_lts_b1); % convert to symbols in FD
+rx_lts_b2_f = fft(rx_lts_b2); % convert to symbols in FD
 
 % Channel Estimates of two branches separately:  
 H0_b1 = rx_lts_b1_f ./ repmat(lts_f',1,N_LTS_SYM);

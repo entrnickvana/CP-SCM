@@ -25,26 +25,30 @@
 % Copyright (c) 2018-2019, Rice University
 % RENEW OPEN SOURCE LICENSE: http://renew-wireless.org/license
 % ---------------------------------------------------------------------
+%
+% History:
+%  2022_05_27 BK: Edited for MEB Rooftop hardware
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear
 close all;
 
 [version, executable, isloaded] = pyversion;
 if ~isloaded
-    pyversion /usr/bin/python
+% %     pyversion /usr/bin/python
     py.print() %weird bug where py isn't loaded in an external script
 end
 
 % Params:
-N_BS_NODE               = 8;             % Number of SDRs (Matlab scripts only using antenna A)
+N_BS_NODE               = 32;             % Number of SDRs (Matlab scripts only using antenna A)
 N_UE                    = 2;
 WRITE_PNG_FILES         = 0;           % Enable writing plots to PNG
-SIM_MOD                 = 0;
+SIM_MOD                 = 1;
 DEBUG                   = 0;
 PLOT                    = 1;
 if SIM_MOD
     chan_type               = "rayleigh"; % Will use only Rayleigh for simulation
-    sim_SNR_db              = 15;
+    sim_SNR_db              = 10;
     TX_SCALE                = 1;         % Scale for Tx waveform ([0:1])
     bs_ids                  = ones(1, N_BS_NODE);
     ue_ids                  = ones(1, N_UE);
@@ -71,17 +75,21 @@ else
         % calibration on the BS. This functionality will be added later.
         % For now, we use only the 4-node chains:
 
-        bs_ids = [ "RF3E000387", "RF3E000389", "RF3E000206", "RF3E000211", "RF3E000256", "RF3E000383", "RF3E000304", "RF3E000303", ...
-            "RF3E000246", "RF3E000490", "RF3E000749", "RF3E000697", "RF3E000724", "RF3E000740", "RF3E000532", "RF3E000716", ...
-            "RF3E000674", "RF3E000704", "RF3E000676", "RF3E000668", "RF3E000340", "RF3E000744", "RF3E000161", "RF3E000735" ...
-            ];
-       hub_id = "FH4B000021";
-
+       hub_id = "FH4B000003";
+       bs_ids = [ "RF3E000698", "RF3E000731", "RF3E000747", "RF3E000734", ...
+           "RF3E000654", "RF3E000458", "RF3E000463", "RF3E000424", ...
+           "RF3E000053", "RF3E000177", "RF3E000192", "RF3E000117", ...
+           "RF3E000257", "RF3E000430", "RF3E000311", "RF3E000565", ...
+           "RF3E000686", "RF3E000574", "RF3E000595", "RF3E000585", ...
+           "RF3E000722", "RF3E000494", "RF3E000592", "RF3E000333", ...
+           "RF3E000748", "RF3E000567", "RF3E000492", "RF3E000688", ...
+           "RF3E000708", "RF3E000526", "RF3E000437", "RF3E000090" ]; % updated for MEB rooftop
     else
-        bs_ids = ["RF3E000246", "RF3E000490", "RF3E000749", "RF3E000697", "RF3E000724", "RF3E000740", "RF3E000532", "RF3E000716"];
+        error( 'We should be using the hub!' )
+% %         bs_ids = ["RF3E000246", "RF3E000490", "RF3E000749", "RF3E000697", "RF3E000724", "RF3E000740", "RF3E000532", "RF3E000716"];
     end
 
-    ue_ids= ["RF3E000119", "RF3E000145"];
+    ue_ids= ["RF3E000353", "RF3E000706"]; % updated for MEB rooftop
 
     N_BS_NODE               = length(bs_ids);           % Number of nodes/antennas at the BS
     N_UE                    = length(ue_ids);           % Number of UE nodes
@@ -124,7 +132,7 @@ lts_t = ifft(lts_f, N_SC); %time domain
 preamble_common = [lts_t(33:64); repmat(lts_t,N_LTS_SYM,1)];
 l_pre = length(preamble_common);
 pre_z = zeros(size(preamble_common));
-preamble = zeros(N_UE * l_pre, N_UE);
+preamble = zeros(N_UE * l_pre, N_UE); % UEs use the same common preamble, but they are staggered in time
 for jp = 1:N_UE
     preamble((jp-1)*l_pre + 1: (jp-1)*l_pre+l_pre,jp) = preamble_common;
 end
@@ -164,7 +172,7 @@ end
 % Reshape to a vector
 tx_payload_vecs = reshape(tx_payload_mat, ceil(numel(tx_payload_mat)/N_UE), N_UE);
 
-% Construct the full time-domain OFDM waveform
+% Construct the full time-domain OFDM waveform (one column per UE)
 tx_vecs = [zeros(N_ZPAD_PRE, N_UE); preamble; tx_payload_vecs; zeros(N_ZPAD_POST, N_UE)];
 
 % Leftover from zero padding:
@@ -282,7 +290,7 @@ for ibs =1:N_BS_NODE
         if (max_idx + data_len) > length(rx_vec_iris) || (max_idx < 0) || (max_idx - length(preamble) < 0)
             fprintf('Bad correlation at antenna %d max_idx = %d \n', ibs, max_idx);
             % Real value doesn't matter since we have corrrupt data:
-            max_idx = length(rx_vec_iris)-data_len -1;
+            max_idx = length(rx_vec_iris) - data_len - N_ZPAD_POST; % This is the correct value for the simulation
             
         end
             
@@ -304,7 +312,7 @@ if DEBUG
         y_label = sprintf('Anetnna %d',sp);
         ylabel(y_label);
     end
-    sgtitle('LTS correlations accross antennas')
+    sgtitle('LTS correlations across antennas')
 end
 
 
@@ -494,6 +502,20 @@ if PLOT
         hold on;
     end
 
+    %% Detailed Constellations
+    cf = cf + 1;
+    figure( cf ), clf
+    for sp=1:N_UE
+        subplot( 1, N_UE, sp );
+        plot(syms_eq_pc(:,sp),'o','MarkerSize',1, 'color', sec_clr);
+        axis square; axis(1.5*[-1 1 -1 1]);
+        grid on;
+        hold on;
+        plot(tx_syms(:, sp),'*', 'MarkerSize',10, 'LineWidth',2, 'color', fst_clr);
+        title(sprintf('Equalized Uplink Tx (blue) and \n Rx (red) symbols for stream %d', sp));
+        % legend({'Rx','Tx'},'Location','EastOutside', 'fontsize', 12);
+    end
+    
     %% Channel Estimates
     cf = cf + 1;
     cond_clr = [0.8500, 0.250, 0.1980];
@@ -521,6 +543,15 @@ if PLOT
     grid on;
     title('Channel Condition (dB)')
     xlabel('Baseband Frequency (MHz)')
+    
+    %% Preamble Correlation
+    cf = cf + 1;
+    figure( cf ), clf
+    plot( lts_corr.' )
+    legend( num2str( ( 1 : N_BS_NODE )' ) )
+    title( 'Correlation Peaks' )
+    xlabel( 'Sample Index' )
+   
 end
 
 %% EVM & SNR
