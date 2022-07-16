@@ -77,8 +77,10 @@ class MIMODriver:
         rx_data = np.empty((n_frames, self.n_bs_antenna, n_samps), dtype=np.complex64)
 
         self.bs_trigger()
-        rx_data = [bs.recv_stream_tdd() for bs in self.bs_obj]  # Returns dimensions (num bs nodes, num channels, num samples)
+        rx_data_frame = [bs.recv_stream_tdd() for bs in self.bs_obj]  # Returns dimensions (num bs nodes, num channels, num samples)
+        rx_data_frame_arr = np.array(rx_data_frame)
         self.reset_frame()
+
 
         return rx_data
 

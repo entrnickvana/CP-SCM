@@ -75,5 +75,9 @@ classdef mimo_driver_nf < handle
         function data = mimo_nf(obj, n_frames, n_samps)
             data = obj.mimo_obj.nf(py.int(n_frames), py.int(n_samps));
         end
+
+        function mimo_close(obj)
+            obj.mimo_obj.close();
+        end
     end
 end

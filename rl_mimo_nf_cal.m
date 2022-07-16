@@ -26,13 +26,10 @@ ANT_BS            = 'AB';         % Options: {A, AB}. To use both antennas per b
 TX_GN             = 0;
 RX_GN             = 50;
 SMPL_RT           = 5e6;
-n_samp            = 4096;
+N_SAMP            = 4096;
 N_FRM             = 1;           % 4096 samples/frame
 N_ZPAD_PRE        = 0;
 bs_sched        = ["RRRRRRRRRRRRRRRR","RRRRRRRRRRRRRRRR"];  % All BS schedule, Ref Schedule
-N_BS_NODE       = length(bs_ids);   % Number of nodes/antennas at the BS
-N_BS_ANT        = length(bs_ids) * length(ANT_BS);  % Number of antennas at the BS
-N_BS            = N_BS_NODE - 1;
 
 % BS HUB ID
 hub_id = "FH4B000003";
@@ -49,6 +46,9 @@ bs_ids = [ "RF3E000698", "RF3E000731", "RF3E000747", "RF3E000734", ...
     "RF3E000708", ..."RF3E000526",
     "RF3E000437", "RF3E000090" ]; % updated for MEB rooftop
 
+N_BS_NODE               = length(bs_ids);           % Number of nodes/antennas at the BS
+N_BS_ANT                = length(bs_ids) * length(ANT_BS);  % Number of antennas at the BS
+
 % Rx processing params
 FFT_OFFSET        = 16;          % Number of CP samples to use in FFT (on average)
 
@@ -60,10 +60,9 @@ disp('Initializing Iris SDRs... ');
 % Iris nodes parameters
 bs_sdr_params_mimo = struct(...      % MIMO_driver
   'bs_id', bs_ids, ...
-  %'ue_id', [], ...           % not interested in UL
+  'ue_id', [], ...           % not interested in UL
   'bs_ant', ANT_BS, ...
-  %'ue_ant', [], ...
-  'txfreq', TX_FRQ, ...
+  'ue_ant', [], ...
   'hub_id', hub_id, ...
   'txfreq', TX_FRQ, ...
   'rxfreq', RX_FRQ, ...
@@ -87,7 +86,7 @@ bs_sdr_params = struct(...           % Iris_py driver
 % Initialize BS SDRs
 if(DUAL_CHAN)
   disp('Using Dual Channel...');
-  node_bs = mimo_driver(bs_sdr_params_mimo);
+  node_bs = mimo_driver_nf(bs_sdr_params_mimo);
 else
   disp('Using Single Channel...');
   node_bs = iris_py(bs_sdr_params,hub_id);
@@ -100,7 +99,7 @@ disp('SUCCESS');
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 disp('Reading Rx data... ');
 if(DUAL_CHAN)
-  [rx_vec_iris, numGoodFrames, numRxSyms] = node_bs.mimo_txrx_uplink([], N_FRM, N_ZPAD_PRE);
+  rx_vec_iris = node_bs.mimo_nf(N_FRM, N_SAMP);
   node_bs.mimo_close();
 else
   disp('Using Single Channel...');
