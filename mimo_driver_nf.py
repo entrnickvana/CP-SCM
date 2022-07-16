@@ -82,7 +82,7 @@ class MIMODriver:
         self.reset_frame()
 
 
-        return rx_data
+        return rx_data_frame_arr
 
 #########################################
 #                  Main                 #
