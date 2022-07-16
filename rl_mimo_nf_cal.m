@@ -23,14 +23,12 @@ DUAL_CHAN = 1;                % 0: Single, 1: Dual
 TX_FRQ            = 3.47e9;
 RX_FRQ            = TX_FRQ;
 ANT_BS            = 'AB';         % Options: {A, AB}. To use both antennas per board, set to 'AB'
-TX_GN             = 70;
+TX_GN             = 0;
 RX_GN             = 50;
 SMPL_RT           = 5e6;
 n_samp            = 4096;
 N_FRM             = 1;           % 4096 samples/frame
 N_ZPAD_PRE        = 0;
-bs_ids = string.empty();
-bs_sched = string.empty();
 bs_sched        = ["RRRRRRRRRRRRRRRR","RRRRRRRRRRRRRRRR"];  % All BS schedule, Ref Schedule
 N_BS_NODE       = length(bs_ids);   % Number of nodes/antennas at the BS
 N_BS_ANT        = length(bs_ids) * length(ANT_BS);  % Number of antennas at the BS
@@ -61,19 +59,17 @@ disp('Initializing Iris SDRs... ');
 
 % Iris nodes parameters
 bs_sdr_params_mimo = struct(...      % MIMO_driver
-  'bs_serial_ids', bs_ids, ...
-  'ue_serial_ids', [], ...           % not interested in UL
-  'n_bs_ant', N_ANT_BS, ...
-  'n_ue_ant', 0, ...
-  'bs_channels', ANT_BS ...
-  'ue_channels', [] ...
+  'bs_id', bs_ids, ...
+  %'ue_id', [], ...           % not interested in UL
+  'bs_ant', ANT_BS, ...
+  %'ue_ant', [], ...
   'txfreq', TX_FRQ, ...
-  'hub_serial', hub_id ...
-  'sample_rate', SMPL_RT
-  'tx_freq', TX_FRQ ...
-  'rx_freq', RX_FRQ ...
-  'tx_gain', TX_GN, ...
-  'rx_gain', RX_GN);
+  'hub_id', hub_id, ...
+  'txfreq', TX_FRQ, ...
+  'rxfreq', RX_FRQ, ...
+  'txgain', TX_GN, ...
+  'rxgain', RX_GN, ...
+  'sample_rate', SMPL_RT);
 
 bs_sdr_params = struct(...           % Iris_py driver
      'id', bs_ids, ...
@@ -127,16 +123,11 @@ end
 % RX DATA PROCESSING
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Remove DC component ***Necessary?***
-for i = 1:length(rx_vec_iris)
-  rx_vec_iris(i) = rx_vec_iris(i) - mean(rx_vec_iris);
-end
-
 % Time Domain Power
 nf_td_rms = rms(rx_vec_iris,'all'); %sqrt(mean(rx_vec_iris.*conj(rx_vec_iris)));
 nf_td_pwr = real(nf_td_rms).^2;
 nf_td_pwr_dB = db(nf_td_pwr);
-nf_td_pwr_dBm = nf_td_pwr_dB + 30);
+nf_td_pwr_dBm = nf_td_pwr_dB + 30;
 disp('######## NF Power (Time Domain) ########');
 fprintf('RMS: %d \n', nf_td_rms);
 fprintf('Power(dB): %.3f \n', nf_td_pwr_dB);
