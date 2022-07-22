@@ -99,7 +99,7 @@ disp('SUCCESS');
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 disp('Reading Rx data... ');
 if(DUAL_CHAN)
-  rx_vec_iris = node_bs.mimo_nf(N_FRM, N_SAMP);
+  [rx_vec_iris, nf_pwr_dB] = node_bs.mimo_nf(N_FRM, N_SAMP);
   node_bs.mimo_close();
 else
   disp('Using Single Channel...');

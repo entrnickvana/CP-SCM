@@ -85,6 +85,7 @@ class MIMODriver:
         #         # Dimensions of rx_data: (self.n_bs_antenna, n_samps)
         #         rx_data[ant_cnt, :] = rx_data_frame_arr[j][k]
         #         ant_cnt = ant_cnt + 1
+        ## rx_data
         for sdr in enumerate(rx_data_frame_arr):
             for chan in enumerate(sdr):
                 for sample_idx in enumerate(chan):
@@ -92,8 +93,15 @@ class MIMODriver:
                 ant_cnt += 1
         self.reset_frame()
 
+        ## NF rms
+        rx_data_mean = np.mean(rx_data_frame_arr**2)
+        rx_data_rms = np.sqrt(rx_data_mean)
 
-        return rx_data
+        ## NF power (dB)
+        rx_data_pwr = np.real(rx_data_rms)**2
+        rx_data_pwr_dB = 10*np.log10(rx_data_pwr)
+
+        return [rx_data , rx_data_pwr_dB]
 
 #########################################
 #                  Main                 #
