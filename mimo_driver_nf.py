@@ -80,15 +80,20 @@ class MIMODriver:
         rx_data_frame = [bs.recv_stream_tdd() for bs in self.bs_obj]  # Returns dimensions (num bs nodes, num channels, num samples)
         rx_data_frame_arr = np.array(rx_data_frame)
         ant_cnt = 0
-        for j in range(self.n_bs_sdrs):
-            for k in range(self.n_bs_chan):
-                # Dimensions of rx_data: (self.n_bs_antenna, n_samps)
-                rx_data[ant_cnt, :] = rx_data_frame_arr[j, k, :]
-                ant_cnt = ant_cnt + 1
+        # for j in range(self.n_bs_sdrs):
+        #     for k in range(self.n_bs_chan):
+        #         # Dimensions of rx_data: (self.n_bs_antenna, n_samps)
+        #         rx_data[ant_cnt, :] = rx_data_frame_arr[j][k]
+        #         ant_cnt = ant_cnt + 1
+        for sdr in enumerate(rx_data_frame_arr):
+            for chan in enumerate(sdr):
+                for sample_idx in enumerate(chan):
+                    rx_data[ant_cnt,sample_idx] = chan[sample_idx]
+                ant_cnt += 1
         self.reset_frame()
 
 
-        return rx_data_frame_arr
+        return rx_data
 
 #########################################
 #                  Main                 #

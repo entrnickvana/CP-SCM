@@ -14,6 +14,7 @@ clear
 close all;
 
 DUAL_CHAN = 1;                % 0: Single, 1: Dual
+NUM_BS_BLOCKS = 1;            % Number of 4xSDRs (out of 32) to test
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % PARAMETERIZE
@@ -34,17 +35,16 @@ bs_sched        = ["RRRRRRRRRRRRRRRR","RRRRRRRRRRRRRRRR"];  % All BS schedule, R
 % BS HUB ID
 hub_id = "FH4B000003";
 
-% NOTE: *567/688/526 Iris nodes were removed due to SoapySDR init errors
-bs_ids = [ "RF3E000698", "RF3E000731", "RF3E000747", "RF3E000734", ...
+% NOTE: *567/688/526 Iris nodes have SoapySDR init errors
+bs_selection = [ "RF3E000698", "RF3E000731", "RF3E000747", "RF3E000734", ...
     "RF3E000654", "RF3E000458", "RF3E000463", "RF3E000424", ...
     "RF3E000053", "RF3E000177", "RF3E000192", "RF3E000117", ...
     "RF3E000257", "RF3E000430", "RF3E000311", "RF3E000565", ...
     "RF3E000686", "RF3E000574", "RF3E000595", "RF3E000585", ...
     "RF3E000722", "RF3E000494", "RF3E000592", "RF3E000333", ...
-    "RF3E000748", ..."RF3E000567",
-    "RF3E000492", ..."RF3E000688", ...
-    "RF3E000708", ..."RF3E000526",
-    "RF3E000437", "RF3E000090" ]; % updated for MEB rooftop
+    "RF3E000748", "RF3E000567", "RF3E000492", "RF3E000688", ...
+    "RF3E000708", "RF3E000526","RF3E000437", "RF3E000090" ]; % updated for MEB rooftop
+bs_ids = bs_selection(1:4*NUM_BS_BLOCKS);
 
 N_BS_NODE               = length(bs_ids);           % Number of nodes/antennas at the BS
 N_BS_ANT                = length(bs_ids) * length(ANT_BS);  % Number of antennas at the BS
@@ -78,7 +78,7 @@ bs_sdr_params = struct(...           % Iris_py driver
      'txgain', TX_GN, ...
      'rxgain', RX_GN, ...
      'sample_rate', SMPL_RT, ...
-     'n_samp', n_samp, ...          % number of samples per frame time.
+     'n_samp', N_SAMP, ...          % number of samples per frame time.
      'n_frame', 1, ...
      'tdd_sched', bs_sched, ...
      'n_zpad_samp', N_ZPAD_PRE);
@@ -109,7 +109,7 @@ else
   tdd_sched_index = 1;               % ***UNSURE ABOUT THIS***
   node_bs.set_tddconfig(1, bs_sdr_params.tdd_sched(tdd_sched_index)); % configure the BS: schedule etc.
   node_bs.sdr_activate_rx();                        % activate reading stream
-  [rx_vec_iris, data0_len] = node_bs.sdrrx(n_samp); % read data
+  [rx_vec_iris, data0_len] = node_bs.sdrrx(N_SAMP); % read data
   disp('SUCCESS');
   node_bs.sdr_close();
 end
