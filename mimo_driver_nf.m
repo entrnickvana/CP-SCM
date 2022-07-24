@@ -72,8 +72,13 @@ classdef mimo_driver_nf < handle
             end
         end
 
-        function [data, nf_pwr] = mimo_nf(obj, n_frames, n_samps)
-            [data, nf_pwr] = obj.mimo_obj.nf(py.int(n_frames), py.int(n_samps));
+        function data = mimo_nf(obj, n_frames, n_samps)
+            data_raw = obj.mimo_obj.nf(py.int(n_frames), py.int(n_samps));
+            data_cell = cell(data_raw.tolist());
+
+            for i = 1:length(data_cell)
+                data(i,:) = cell2mat(cell(data_cell{i}));
+            end
         end
 
         function mimo_close(obj)

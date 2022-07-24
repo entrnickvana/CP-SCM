@@ -71,37 +71,24 @@ class MIMODriver:
         [bs.close() for bs in self.bs_obj]
 
     def nf(self, n_frames, n_samps):
-        bs_sched='GRRG'
-        [bs.config_sdr_tdd() for i, bs in enumerate(self.bs_obj)] #just guard band - no tx or rx
+        bs_sched='RRRR'
+        [bs.config_sdr_tdd(tdd_sched=bs_sched) for i, bs in enumerate(self.bs_obj)] #just guard band - no tx or rx
         [bs.activate_stream_rx() for bs in self.bs_obj]
         rx_data = np.empty((n_frames, self.n_bs_antenna, n_samps), dtype=np.complex64)
 
         self.bs_trigger()
         rx_data_frame = [bs.recv_stream_tdd() for bs in self.bs_obj]  # Returns dimensions (num bs nodes, num channels, num samples)
         rx_data_frame_arr = np.array(rx_data_frame)
+
         ant_cnt = 0
-        # for j in range(self.n_bs_sdrs):
-        #     for k in range(self.n_bs_chan):
-        #         # Dimensions of rx_data: (self.n_bs_antenna, n_samps)
-        #         rx_data[ant_cnt, :] = rx_data_frame_arr[j][k]
-        #         ant_cnt = ant_cnt + 1
-        ## rx_data
-        for sdr in enumerate(rx_data_frame_arr):
-            for chan in enumerate(sdr):
-                for sample_idx in enumerate(chan):
-                    rx_data[ant_cnt,sample_idx] = chan[sample_idx]
-                ant_cnt += 1
+        for j in range(self.n_bs_sdrs):
+             for k in range(self.n_bs_chan):
+                 # Dimensions of rx_data: (self.n_bs_antenna, n_samps)
+                 rx_data[ant_cnt, :] = rx_data_frame_arr[j][k]
+                 ant_cnt += 1
         self.reset_frame()
 
-        ## NF rms
-        rx_data_mean = np.mean(rx_data_frame_arr**2)
-        rx_data_rms = np.sqrt(rx_data_mean)
-
-        ## NF power (dB)
-        rx_data_pwr = np.real(rx_data_rms)**2
-        rx_data_pwr_dB = 10*np.log10(rx_data_pwr)
-
-        return rx_data , rx_data_pwr_dB
+        return rx_data
 
 #########################################
 #                  Main                 #
@@ -110,7 +97,6 @@ def main():
     parser = OptionParser()
     parser.add_option("--hub", type="string", dest="hub", help="serial number of the hub device", default='FH4B000003')
     parser.add_option("--bs-serials", type="string", dest="bs_serials", help="serial numbers of the BS devices", default='RF3E000698,RF3E000731,RF3E000747,RF3E000734')
-    parser.add_option("--ue-serials", type="string", dest="ue_serials", help="serial numbers of the UE devices", default=[])
     parser.add_option("--rate", type="float", dest="rate", help="Tx sample rate", default=5e6)
     parser.add_option("--freq", type="float", dest="freq", help="Tx freq (Hz). POWDER users must set to 3.6e9", default=3.547e9)
     parser.add_option("--tx-gain", type="float", dest="tx_gain", help="Optional Tx gain (dB)", default=0)
@@ -119,7 +105,7 @@ def main():
     mimo = MIMODriver(
         hub_serial=options.hub,
         bs_serials=options.bs_serials.split(','),
-        ue_serials=options.ue_serials.split(','),
+        ue_serials=[],
         rate=options.rate,
         tx_freq=options.freq,
         rx_freq=options.freq,
@@ -129,8 +115,8 @@ def main():
 
     test_nf = True
     if test_nf:
-        rx_vec_iris, nf_pwr_dB = mimo.nf(1, 4096)
-        print("rx_vec_iris.shape: {}, nf_pwr_dB: {}".format(rx_vec_iris.shape, nf_pwr_dB))
+        rx_vec_iris = mimo.nf(1, 4096)
+        print("rx_vec_iris.shape: {}".format(rx_vec_iris.shape))
 
     mimo.close()
 
