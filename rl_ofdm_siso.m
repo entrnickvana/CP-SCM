@@ -32,6 +32,10 @@ close all;
 
 [version, executable, isloaded] = pyversion;
 if ~isloaded
+
+    % 1: first run this,  sudo add-apt-repository ppa:deadsnakes/ppa
+    % 2: second run this, sudo apt install python3.8
+    %pyversion /usr/bin/python3.8
     pyversion /usr/bin/python
     py.print() %weird bug where py isn't loaded in an external script
 end
